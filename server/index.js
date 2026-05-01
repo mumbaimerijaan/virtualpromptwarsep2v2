@@ -43,7 +43,7 @@ const chatLimiter = rateLimit({
   }
 });
 
-// Set Production CSP Headers (Fixes 'frame-ancestors' ignored in meta tag)
+// Set Production CSP Headers with strict whitelisting
 app.use((req, res, next) => {
   res.setHeader(
     'Content-Security-Policy',
@@ -52,7 +52,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' https://www.google-analytics.com https://www.google.com/recaptcha/; " +
+    "connect-src 'self' https://www.google-analytics.com https://www.google.com/recaptcha/ https://generativelanguage.googleapis.com; " +
     "base-uri 'self'; " +
     "form-action 'self'; " +
     "frame-ancestors 'none'; " +
@@ -61,9 +61,13 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).send('OK');
+// GET /api/health: Professional health check for Cloud Run monitoring
+app.get('/api/health', (req, res) => {
+  res.status(200).json({
+    status: 'UP',
+    timestamp: new Date().toISOString(),
+    version: '1.2.0'
+  });
 });
 
 // Serve static files from the Vite build directory
@@ -133,11 +137,16 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
       return res.status(400).json({ error: 'Prompt is required' });
     }
 
-    // Check Cache first
+    /**
+     * Cache-Aside Pattern Implementation:
+     * 1. Check if the AI response is already in the local memory cache.
+     * 2. If present (Cache Hit), return immediately to save API latency and costs.
+     * 3. If absent (Cache Miss), proceed to secure AI orchestration and update cache.
+     */
     const cacheKey = JSON.stringify({ prompt, history });
     const cachedResponse = aiCache.get(cacheKey);
     if (cachedResponse) {
-      console.log('Serving cached AI response');
+      console.log('Serving cached AI response [Cache Hit]');
       return res.json(cachedResponse);
     }
 

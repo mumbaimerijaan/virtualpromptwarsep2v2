@@ -25,6 +25,8 @@ const EmergencyPage = React.lazy(() => import('./pages').then(m => ({ default: m
 const SpecialSupportPage = React.lazy(() => import('./pages').then(m => ({ default: m.SpecialSupportPage })));
 const FallbackHelpPage = React.lazy(() => import('./pages').then(m => ({ default: m.FallbackHelpPage })));
 
+import LoadingSkeleton from './components/Skeleton/LoadingSkeleton';
+
 function HomePage() {
   const navigate = useNavigate();
 
@@ -87,7 +89,7 @@ function App() {
           <Header />
           
           <div className="flex-1 flex flex-col">
-            <Suspense fallback={<div className="p-10 flex justify-center text-indigo-500"><div className="w-6 h-6 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div></div>}>
+            <Suspense fallback={<LoadingSkeleton />}>
               <Routes>
                 <Route path={ROUTES.HOME} element={<HomePage />} />
                 <Route path={ROUTES.REGISTER} element={<RegisterVoterPage />} />

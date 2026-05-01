@@ -4,6 +4,7 @@ import {
   initializeFirestore, 
   enableIndexedDbPersistence 
 } from 'firebase/firestore';
+import { getAuth, signInAnonymously } from 'firebase/auth';
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check';
 
 const firebaseConfig = {
@@ -19,6 +20,7 @@ const firebaseConfig = {
 // Singleton initialization
 let app;
 let db;
+let auth;
 let appCheck;
 
 export const initFirebase = () => {
@@ -37,6 +39,12 @@ export const initFirebase = () => {
     // Initialize Firestore with long-polling optimization
     db = initializeFirestore(app, {
       experimentalAutoDetectLongPolling: true
+    });
+
+    // Initialize Auth
+    auth = getAuth(app);
+    signInAnonymously(auth).catch((error) => {
+      console.error('Firebase Anonymous Auth Error:', error.code, error.message);
     });
 
     // Enable offline persistence
@@ -63,4 +71,11 @@ export const getDb = () => {
     return initialized.db;
   }
   return db;
+};
+
+export const getFirebaseToken = async () => {
+  if (!auth) return null;
+  const user = auth.currentUser;
+  if (!user) return null;
+  return await user.getIdToken();
 };

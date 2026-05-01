@@ -3,6 +3,10 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import helmet from 'helmet';
+import compression from 'compression';
+import rateLimit from 'express-rate-limit';
+import NodeCache from 'node-cache';
 import { GoogleGenAI } from '@google/genai';
 import { RecaptchaEnterpriseServiceClient } from '@google-cloud/recaptcha-enterprise';
 
@@ -18,8 +22,26 @@ if (process.env.NODE_ENV !== 'production') {
 const app = express();
 const port = process.env.PORT || 8080;
 
+// Security & Performance Middlewares
+app.use(helmet({
+  contentSecurityPolicy: false, // We handle CSP manually below for flexibility
+}));
+app.use(compression());
 app.use(cors());
 app.use(express.json());
+
+// Initialize AI Response Cache (1 hour TTL)
+const aiCache = new NodeCache({ stdTTL: 3600, checkperiod: 600 });
+
+// Rate Limiting for Chat API
+const chatLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  message: {
+    intent: 'ERROR',
+    message: 'Too many requests from this IP, please try again after 15 minutes.'
+  }
+});
 
 // Set Production CSP Headers (Fixes 'frame-ancestors' ignored in meta tag)
 app.use((req, res, next) => {
@@ -54,6 +76,9 @@ let recaptchaClient = null;
 
 /**
  * Create an assessment to analyze the risk of a UI action.
+ * @param {string} token The token obtained from the client.
+ * @param {string} recaptchaAction Action name corresponding to the token.
+ * @returns {Promise<number|null>} Risk score or null if invalid.
  */
 async function createAssessment(token, recaptchaAction) {
   if (!recaptchaClient) {
@@ -97,12 +122,23 @@ You are the intent router for the "Matdaan Saathi" mobile application...
 You MUST respond with a JSON object.
 `;
 
-app.post('/api/chat', async (req, res) => {
+/**
+ * AI Chat Endpoint with security and caching
+ */
+app.post('/api/chat', chatLimiter, async (req, res) => {
   try {
     const { prompt, history, recaptchaToken, recaptchaAction } = req.body;
 
     if (!prompt) {
       return res.status(400).json({ error: 'Prompt is required' });
+    }
+
+    // Check Cache first
+    const cacheKey = JSON.stringify({ prompt, history });
+    const cachedResponse = aiCache.get(cacheKey);
+    if (cachedResponse) {
+      console.log('Serving cached AI response');
+      return res.json(cachedResponse);
     }
 
     // Verify reCAPTCHA
@@ -116,7 +152,7 @@ app.post('/api/chat', async (req, res) => {
     const score = await createAssessment(recaptchaToken, recaptchaAction);
 
     if (score === null || score < 0.5) {
-      console.warn(`Blocking request due to low reCAPTCHA score: ${score}`);
+      console.warn(`[SECURITY] High risk request blocked. reCAPTCHA Score: ${score}, Action: ${recaptchaAction}`);
       return res.status(403).json({
         intent: 'ERROR',
         message: 'I cannot process this request right now due to security policies. If you are a human, please try again later.'
@@ -163,11 +199,18 @@ app.post('/api/chat', async (req, res) => {
       throw new Error("Invalid response format from AI");
     }
 
+    // Cache the result before sending
+    aiCache.set(cacheKey, resultObj);
+    
     res.json(resultObj);
 
   } catch (error) {
-    console.error('AI Processing Error:', error);
-    res.json({
+    console.error('AI Processing Error:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code || 'AI_EXECUTION_FAILURE'
+    });
+    res.status(500).json({
       intent: 'ERROR',
       message: 'I am having trouble connecting to my knowledge base right now. Please try one of the popular topics.',
       suggestions: ['Register as a voter', 'Check voter list', 'How to vote']

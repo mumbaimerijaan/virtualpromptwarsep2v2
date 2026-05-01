@@ -1,19 +1,21 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Menu, Globe, ChevronRight, UserPlus, Search, Edit3, CheckSquare, BookOpen, MessageSquare, ShieldCheck, Megaphone, Bot, Clock, ShieldAlert, Fingerprint, Home as HomeIcon } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ROUTES } from '../lib/routes';
 import logoImg from '../assets/logo.png';
 import heroImg from '../assets/hero.png';
 
-export const ActionItem = ({ icon: Icon, title, iconColorClass, iconBgClass, hasBorder = true, onClick }) => {
+export const ActionItem = memo(({ icon: Icon, title, iconColorClass, iconBgClass, hasBorder = true, onClick }) => {
   return (
     <button 
       onClick={onClick}
+      role="link"
+      aria-label={`Navigate to ${title}`}
       className={`w-full flex items-center justify-between py-4 px-5 bg-white transition-all duration-200 hover:bg-slate-50 focus:outline-none focus:bg-slate-50 ${hasBorder ? 'border-b border-slate-100' : ''}`}
     >
       <div className="flex items-center gap-4">
-        <div className={`p-2 rounded-full ${iconBgClass} ${iconColorClass}`}>
-          <Icon size={20} strokeWidth={2.5} aria-hidden="true" />
+        <div className={`p-2 rounded-full ${iconBgClass} ${iconColorClass}`} aria-hidden="true">
+          <Icon size={20} strokeWidth={2.5} />
         </div>
         <span className="font-semibold text-slate-800 text-[15px]">
           {title}
@@ -22,7 +24,7 @@ export const ActionItem = ({ icon: Icon, title, iconColorClass, iconBgClass, has
       <ChevronRight size={18} className="text-slate-400" aria-hidden="true" />
     </button>
   );
-};
+});
 
 export const Header = () => {
   const navigate = useNavigate();
@@ -229,16 +231,17 @@ export const Footer = () => (
   </footer>
 );
 
-export const FloatingAssistant = ({ onClick }) => (
+export const FloatingAssistant = memo(({ onClick }) => (
   <div className="fixed bottom-6 left-0 right-0 mx-auto w-full md:w-[60%] pointer-events-none z-40">
     <div className="absolute right-6 bottom-0">
       <button 
         onClick={onClick}
-        className="pointer-events-auto bg-[#303F9F] hover:bg-[#283593] text-white rounded-[32px] shadow-[0_8px_20px_rgba(48,63,159,0.3)] p-2.5 pr-6 flex items-center gap-3 transition-transform hover:scale-105 focus:outline-none"
-        aria-label="Need help? Ask our assistant"
+        role="button"
+        aria-label="Ask our AI assistant for help"
+        className="pointer-events-auto bg-[#303F9F] hover:bg-[#283593] text-white rounded-[32px] shadow-[0_8px_20px_rgba(48,63,159,0.3)] p-2.5 pr-6 flex items-center gap-3 transition-transform hover:scale-105 focus:outline-none focus:ring-4 focus:ring-indigo-300"
       >
-        <div className="bg-white text-[#303F9F] p-2 rounded-full shadow-sm">
-          <Bot size={22} aria-hidden="true" />
+        <div className="bg-white text-[#303F9F] p-2 rounded-full shadow-sm" aria-hidden="true">
+          <Bot size={22} />
         </div>
         <div className="flex flex-col text-left">
           <span className="font-bold text-[13px] leading-none mb-1">Need help?</span>
@@ -247,5 +250,5 @@ export const FloatingAssistant = ({ onClick }) => (
       </button>
     </div>
   </div>
-);
+));
 export { BottomNav } from './BottomNav'; 

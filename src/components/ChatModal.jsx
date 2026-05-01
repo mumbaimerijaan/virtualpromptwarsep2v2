@@ -5,8 +5,11 @@ import botImg from '../assets/bot.png';
 import botBgImg from '../assets/bot-bg.png';
 import faqData from '../assets/faqs_full.json';
 import { classifyIntent } from '../lib/gemini';
-import { subscribeToChatMessages, saveMessageToFirestore } from '../services/chatService';
+import { ChatService } from '../services/chat.service';
 import { ROUTES } from '../lib/routes';
+import { getFirebaseToken } from '../lib/firebase';
+import { sanitizeHTML, sanitizeText } from '../utils/sanitize';
+import { findFAQMatch, findRouteMatch } from '../utils/intentMatcher';
 
 const INITIAL_MESSAGES = [
   {
@@ -43,7 +46,7 @@ export const ChatModal = ({ isOpen, onClose }) => {
   useEffect(() => {
     if (isOpen && sessionId && hasInteracted) {
       setIsSyncing(true);
-      const unsubscribe = subscribeToChatMessages(sessionId, (newMessages) => {
+      const unsubscribe = ChatService.subscribeToMessages(sessionId, (newMessages) => {
         if (newMessages.length > 0) {
           setMessages([...INITIAL_MESSAGES, ...newMessages]);
         }
@@ -118,48 +121,7 @@ export const ChatModal = ({ isOpen, onClose }) => {
     }
   };
 
-  const findPageMatch = (query) => {
-    const q = query.toLowerCase();
-    const pageMap = [
-      { keywords: ['register', 'form 6', 'new voter', 'apply', 'enroll'], route: ROUTES.REGISTER, title: 'Register as a Voter' },
-      { keywords: ['status', 'track', 'application', 'reference', 'pending'], route: ROUTES.STATUS, title: 'Track Application Status' },
-      { keywords: ['list', 'name', 'check name', 'epic', 'search', 'electoral roll'], route: ROUTES.CHECK_VOTER_LIST, title: 'Check Voter List' },
-      { keywords: ['update', 'correct', 'change', 'details', 'form 8'], route: ROUTES.UPDATE_DETAILS, title: 'Update Voter Details' },
-      { keywords: ['vote', 'how to vote', 'process', 'booth', 'evm', 'vvpat'], route: ROUTES.VOTING_PROCESS, title: 'Voting Process' },
-      { keywords: ['understand', 'learn', 'how it works', 'about elections'], route: ROUTES.HOW_ELECTIONS_WORK, title: 'Understand Elections' },
-      { keywords: ['updates', 'news', 'announcement', 'latest'], route: ROUTES.UPDATES, title: 'Latest Updates' },
-      { keywords: ['faq', 'frequently asked', 'help'], route: ROUTES.FAQ, title: 'FAQs' }
-    ];
-
-    for (const page of pageMap) {
-      if (page.keywords.some(k => q.includes(k))) {
-        return page;
-      }
-    }
-    return null;
-  };
-
-  const findFAQMatch = (query) => {
-    const q = query.toLowerCase();
-    let bestMatch = null;
-    let maxScore = 0;
-
-    faqData.tabs.forEach(tab => {
-      tab.faqs.forEach(faq => {
-        let score = 0;
-        if (faq.question.toLowerCase().includes(q)) score += 10;
-        if (faq.search_text?.toLowerCase().includes(q)) score += 5;
-        if (faq.keywords?.some(k => q.includes(k.toLowerCase()))) score += 2;
-        
-        if (score > maxScore) {
-          maxScore = score;
-          bestMatch = faq;
-        }
-      });
-    });
-
-    return maxScore >= 5 ? bestMatch : null;
-  };
+  // Intent matching logic moved to src/utils/intentMatcher.js
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -171,12 +133,12 @@ export const ChatModal = ({ isOpen, onClose }) => {
     
     try {
       // 1. Save User Message to Firestore
-      await saveMessageToFirestore(sessionId, { type: 'user', content: userMessage });
+      await ChatService.saveMessage(sessionId, { type: 'user', content: userMessage });
 
       // 2. Try Local Page Match (Priority 1)
-      const pageMatch = findPageMatch(userMessage);
+      const pageMatch = findRouteMatch(userMessage);
       if (pageMatch) {
-        await saveMessageToFirestore(sessionId, {
+        await ChatService.saveMessage(sessionId, {
           type: 'bot',
           content: `I can help you with that! You can access the ${pageMatch.title} page directly here.`,
           intent: pageMatch.route,
@@ -189,7 +151,7 @@ export const ChatModal = ({ isOpen, onClose }) => {
       // 3. Try Local FAQ Match (Priority 2)
       const faqMatch = findFAQMatch(userMessage);
       if (faqMatch) {
-        await saveMessageToFirestore(sessionId, {
+        await ChatService.saveMessage(sessionId, {
           type: 'bot',
           content: faqMatch.answer,
           intent: 'FAQ_REPLY',
@@ -213,9 +175,19 @@ export const ChatModal = ({ isOpen, onClose }) => {
           console.error("reCAPTCHA execution failed:", err);
       }
 
-      const response = await classifyIntent(userMessage, messages, recaptchaToken, recaptchaAction);
+      const response = await ChatService.sendToAI({
+        prompt: userMessage,
+        history: messages.map(m => ({
+          id: m.id,
+          type: m.type,
+          content: m.content,
+          timestamp: Date.now()
+        })),
+        recaptchaToken,
+        recaptchaAction
+      });
       
-      await saveMessageToFirestore(sessionId, {
+      await ChatService.saveMessage(sessionId, {
         type: 'bot',
         content: response.message,
         intent: response.intent,
@@ -225,7 +197,7 @@ export const ChatModal = ({ isOpen, onClose }) => {
     } catch (error) {
       console.error("Chat flow error:", error);
       // Fallback message saving
-      await saveMessageToFirestore(sessionId, {
+      await ChatService.saveMessage(sessionId, {
         type: 'bot',
         content: "Sorry, I'm having trouble connecting right now.",
         intent: "ERROR",
@@ -369,7 +341,11 @@ export const ChatModal = ({ isOpen, onClose }) => {
                       : 'bg-white text-slate-700 rounded-bl-sm border border-slate-100'
                   }`}
                 >
-                  {msg.content}
+                  {msg.type === 'user' ? (
+                    msg.content
+                  ) : (
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(msg.content) }} />
+                  )}
                 </div>
 
                 {/* Bot Suggestions rendering */}

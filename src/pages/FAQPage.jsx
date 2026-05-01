@@ -12,28 +12,35 @@ import {
   ChevronRight,
   HelpCircle
 } from 'lucide-react';
+import { useDebounce } from '../hooks/useDebounce';
+import { memo } from 'react';
 import faqData from '../assets/faqs_full.json';
 import faqHeroImg from '../assets/faq-hero.png';
 
-const FAQItem = ({ faq, index, isOpen, onToggle }) => {
+const FAQItem = memo(({ faq, index, isOpen, onToggle }) => {
   return (
     <div className={`border-b border-slate-100 last:border-0 overflow-hidden transition-all duration-300 ${isOpen ? 'bg-indigo-50/30' : ''}`}>
       <button 
         onClick={onToggle}
+        aria-expanded={isOpen}
+        aria-controls={`faq-content-${faq.id}`}
         className="w-full py-5 px-4 flex items-start gap-4 text-left group"
       >
-        <span className="text-[14px] font-bold text-indigo-400 mt-1">
+        <span className="text-[14px] font-bold text-indigo-400 mt-1" aria-hidden="true">
           {(index + 1).toString().padStart(2, '0')}
         </span>
         <span className="flex-1 text-[15px] font-bold text-slate-800 leading-tight group-hover:text-indigo-600 transition-colors">
           {faq.question}
         </span>
-        <div className={`mt-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`}>
+        <div className={`mt-1 transition-transform duration-300 ${isOpen ? 'rotate-180' : ''}`} aria-hidden="true">
           <ChevronDown size={18} className="text-slate-400" />
         </div>
       </button>
       
       <div 
+        id={`faq-content-${faq.id}`}
+        role="region"
+        aria-labelledby={`faq-button-${faq.id}`}
         className={`px-4 overflow-hidden transition-all duration-300 ease-in-out ${
           isOpen ? 'max-h-[800px] pb-6' : 'max-h-0'
         }`}
@@ -57,10 +64,11 @@ const FAQItem = ({ faq, index, isOpen, onToggle }) => {
       </div>
     </div>
   );
-};
+});
 
 export const FAQPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
+  const debouncedSearch = useDebounce(searchQuery, 300);
   const [activeTab, setActiveTab] = useState(faqData.tabs[0].title);
   const [expandedId, setExpandedId] = useState(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -77,12 +85,12 @@ export const FAQPage = () => {
   };
 
   const filteredFaqs = useMemo(() => {
-    if (!searchQuery.trim()) {
+    if (!debouncedSearch.trim()) {
       const currentTab = faqData.tabs.find(t => t.title === activeTab);
       return currentTab ? currentTab.faqs : [];
     }
 
-    const query = searchQuery.toLowerCase();
+    const query = debouncedSearch.toLowerCase();
     let allFaqs = [];
     faqData.tabs.forEach(tab => {
       allFaqs = [...allFaqs, ...tab.faqs];
@@ -93,7 +101,7 @@ export const FAQPage = () => {
       faq.search_text?.toLowerCase().includes(query) ||
       faq.keywords?.some(k => k.toLowerCase().includes(query))
     );
-  }, [searchQuery, activeTab]);
+  }, [debouncedSearch, activeTab]);
 
   const totalPages = Math.ceil(filteredFaqs.length / itemsPerPage);
   const paginatedFaqs = filteredFaqs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);

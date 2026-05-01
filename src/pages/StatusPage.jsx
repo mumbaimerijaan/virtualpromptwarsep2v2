@@ -199,6 +199,31 @@ export const StatusPage = () => {
               ))}
             </div>
 
+            {/* What to do next? - Enhanced Guidance */}
+            <div className="bg-[#FFFBEB] border border-amber-100 p-5 rounded-[24px] flex flex-col gap-4 shadow-sm">
+              <div className="flex items-center gap-3 mb-1">
+                <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center text-amber-600">
+                  <HelpCircle size={20} />
+                </div>
+                <h3 className="font-bold text-amber-900 text-[15px]">What to do next?</h3>
+              </div>
+              
+              <div className="flex flex-col gap-3">
+                <div className="p-3 bg-white/60 rounded-xl">
+                  <p className="text-[12px] font-bold text-slate-800">Scenario: Name not found</p>
+                  <p className="text-[11px] text-slate-600 mt-1">If your application was approved but name is not showing, wait for 48 hours for the electoral roll to update.</p>
+                </div>
+                <div className="p-3 bg-white/60 rounded-xl">
+                  <p className="text-[12px] font-bold text-slate-800">Scenario: Application Rejected</p>
+                  <p className="text-[11px] text-slate-600 mt-1">Check the rejection reason on the portal. You can file a new Form 6 with corrected documents immediately.</p>
+                </div>
+                <div className="p-3 bg-white/60 rounded-xl">
+                  <p className="text-[12px] font-bold text-slate-800">Scenario: Long Delay</p>
+                  <p className="text-[11px] text-slate-600 mt-1">If pending for &gt;30 days, contact your ERO (Electoral Registration Officer) or call 1950.</p>
+                </div>
+              </div>
+            </div>
+
             {/* Time Taken Box */}
             <div className="bg-white p-4 rounded-[20px] border border-slate-100 shadow-sm flex items-center gap-4 relative overflow-hidden">
                <div className="p-2.5 rounded-full bg-slate-50 text-slate-400">

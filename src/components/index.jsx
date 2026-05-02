@@ -34,7 +34,7 @@ export const Header = () => {
   return (
     <header className="w-full flex justify-between items-center py-5 relative">
       <div className="absolute top-0 left-0 opacity-40 pointer-events-none">
-        <span className="text-[9px] font-mono text-slate-400">v1.0.2</span>
+        <span className="text-[9px] font-mono text-slate-400">v1.0.4</span>
       </div>
       <div className="w-10"> {/* Placeholder to keep language button on right if home is hidden */}
         {!isHomePage && (

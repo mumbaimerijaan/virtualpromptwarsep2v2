@@ -52,7 +52,7 @@ app.use((req, res, next) => {
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
     "font-src 'self' https://fonts.gstatic.com; " +
     "img-src 'self' data: https:; " +
-    "connect-src 'self' https://www.google-analytics.com https://www.google.com/recaptcha/ https://generativelanguage.googleapis.com; " +
+    "connect-src 'self' https://www.google-analytics.com https://www.google.com/recaptcha/ https://generativelanguage.googleapis.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; " +
     "base-uri 'self'; " +
     "form-action 'self'; " +
     "frame-ancestors 'none'; " +
